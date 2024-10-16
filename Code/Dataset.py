@@ -75,7 +75,7 @@ import torch
 import re
 
 class TextDataset(torch.utils.data.Dataset):
-    def __init__(self, texts, labels, tokenizer, max_length=128, max_sentences=1):
+    def __init__(self, texts, labels, tokenizer, max_length=128, max_sentences=2):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer

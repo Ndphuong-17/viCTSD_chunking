@@ -6,22 +6,20 @@ import numpy as np
 import torch.optim as optim
 
 
-
 class MultiTaskModel(nn.Module):
     def __init__(self, embedding_model, classification_model, dropout_rate=0.1):
         super(MultiTaskModel, self).__init__()
         self.embedding_model = embedding_model
-        # self.classification_head = classification_model
-        self.classification_head = nn.Linear(768, 2)
+        self.classification_head = nn.Linear(768, 2)  # Adjust the output size as needed
         self.dropout = nn.Dropout(dropout_rate)
-
+        self.batch_norm = nn.BatchNorm1d(768)  # Batch normalization for the output features
 
     def forward(self, input_ids, attention_mask):
         """
         input_ids: Tensor of shape (batch_size, max_sentence, max_length)
         attention_mask: Tensor of shape (batch_size, max_sentence, max_length)
         """
-
+        
         batch_size = input_ids.size(0)  # Get the batch size
         max_sentences = input_ids.size(1)  # Get the maximum number of sentences in the batch
         
@@ -33,23 +31,24 @@ class MultiTaskModel(nn.Module):
         outputs = self.embedding_model(input_ids=input_ids_flat, attention_mask=attention_mask_flat)
         last_hidden_state = outputs.last_hidden_state  # (batch_size * max_sentences, max_length, hidden_dim)
 
-
         # Mean pooling on each sentence's hidden states
         pooled_embeddings = last_hidden_state.mean(dim=1)  # (batch_size * max_sentences, hidden_dim)
 
         # Reshape to (batch_size, max_sentences, hidden_dim) and aggregate embeddings
         aggregated_embeddings = pooled_embeddings.view(batch_size, max_sentences, -1).mean(dim=1)  # (batch_size, hidden_dim)
 
-
         # Apply dropout for regularization
         pooled_output = self.dropout(aggregated_embeddings)  # Shape: (batch_size, hidden_dim)
-
+        pooled_output = self.batch_norm(pooled_output)  # Apply batch normalization
 
         # Ensure logits shape matches the number of classes
         logits = self.classification_head(pooled_output)  # (batch_size, num_classes)
-        logits = torch.sigmoid(logits)
+
+        # Change activation function based on task (e.g., sigmoid for multi-label, softmax for multi-class)
+        logits = torch.softmax(logits, dim=1)  # Using softmax for multi-class classification
 
         return logits
+
 
 
 
